@@ -7,7 +7,7 @@ const optionButtons = document.getElementById('optionButtons');
 // Backend API URL - handles both development and production
 const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8000/chat'
-    : 'https://your-backend-service.onrender.com/chat';  // Replace with your actual Render backend URL
+    : 'https://medicalbot-akmw.onrender.com';  // Replace with your actual Render backend URL
 
 // User data state
 let userData = {
