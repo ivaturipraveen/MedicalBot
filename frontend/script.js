@@ -62,6 +62,35 @@ function addUserMessage(message) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+// Add options directly to the chat flow
+function addOptionsToChat(options) {
+    const optionsContainer = document.createElement('div');
+    optionsContainer.classList.add('in-chat-options');
+    
+    options.forEach(option => {
+        const button = document.createElement('button');
+        button.classList.add('chat-option-button');
+        button.textContent = option.text || option;
+        
+        // Add click event to send the selected option
+        button.addEventListener('click', () => {
+            // Highlight selected button
+            const allButtons = optionsContainer.querySelectorAll('.chat-option-button');
+            allButtons.forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+            
+            // Send the selected option
+            const value = option.value || option;
+            sendMessage(value);
+        });
+        
+        optionsContainer.appendChild(button);
+    });
+    
+    chatMessages.appendChild(optionsContainer);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 // Send message to backend
 async function sendMessage(message) {
     try {
@@ -69,6 +98,14 @@ async function sendMessage(message) {
         if (message !== "Hello") {
             addUserMessage(message);
         }
+        
+        // Disable all option buttons to prevent multiple clicks
+        const buttons = document.querySelectorAll('.chat-option-button');
+        buttons.forEach(button => {
+            button.disabled = true;
+            button.style.opacity = '0.5';
+            button.style.cursor = 'not-allowed';
+        });
         
         // Prepare request data
         const requestData = {
@@ -132,44 +169,89 @@ async function sendMessage(message) {
 
 // Handle different response actions
 function handleAction(action, data) {
-    // Handle option buttons if provided in the response
-    if (action === 'show_options' && data.options) {
-        displayOptionButtons(data.options);
-    } else {
-        // Clear option buttons if no options provided
-        optionButtons.innerHTML = '';
-    }
-}
-
-// Display option buttons (departments, doctors, timings, yes/no)
-function displayOptionButtons(options) {
-    // Clear previous buttons
-    optionButtons.innerHTML = '';
+    // Debug logging
+    console.log("Action received:", action);
+    console.log("Data received:", data);
     
-    if (Array.isArray(options)) {
-        options.forEach(option => {
-            const button = document.createElement('button');
-            button.classList.add('option-button');
-            button.textContent = option;
-            
-            // Add click event to send the selected option
-            button.addEventListener('click', () => {
-                // Highlight selected button
-                const allButtons = optionButtons.querySelectorAll('.option-button');
-                allButtons.forEach(btn => btn.classList.remove('selected'));
-                button.classList.add('selected');
-                
-                // Send the selected option
-                sendMessage(option);
-                
-                // Clear the buttons after selection
-                setTimeout(() => {
-                    optionButtons.innerHTML = '';
-                }, 500);
+    // Check for specific actions that need buttons
+    if (action === 'offer_booking') {
+        // Display Yes/No buttons in chat
+        addOptionsToChat([
+            { text: "Yes", value: "Yes" },
+            { text: "No", value: "No" }
+        ]);
+    } else if (action === 'show_existing_appointment') {
+        // Display cancel and new appointment buttons in chat
+        addOptionsToChat([
+            { text: "Cancel Appointment", value: "cancel" },
+            { text: "Book New Appointment", value: "book new appointment" }
+        ]);
+    } else if (action === 'confirm_cancellation') {
+        // Display cancellation confirmation buttons in chat
+        addOptionsToChat([
+            { text: "Yes, Cancel", value: "yes" },
+            { text: "No, Keep", value: "no" }
+        ]);
+    } else if (action === 'show_options' && data && data.options) {
+        // Generic option buttons handler - add to chat
+        console.log("Showing options:", data.options);
+        addOptionsToChat(data.options);
+    } else if (action === 'request_department') {
+        // Fallback for backward compatibility
+        const departments = ["Cardiology", "Neurology", "General Physician"];
+        addOptionsToChat(departments);
+    } else if (action === 'request_doctor') {
+        // Fallback for backward compatibility
+        if (data && data.doctors && Array.isArray(data.doctors)) {
+            addOptionsToChat(data.doctors);
+        } else if (data && data.department) {
+            // Get doctors for the department
+            let doctors = [];
+            if (data.department.toLowerCase() === "cardiology") {
+                doctors = ["Dr. Alice Ball", "Dr. Bob Evans", "Dr. Carol Davis", "Dr. David Green", "Dr. Emily Harris"];
+            } else if (data.department.toLowerCase() === "neurology") {
+                doctors = ["Dr. Frank Einstein", "Dr. Grace Johnson", "Dr. Henry King", "Dr. Ramesh King", "Dr. Jack Miller"];
+            } else if (data.department.toLowerCase() === "general physician") {
+                doctors = ["Dr. Nelson Dilipkumar", "Dr. John Dalton", "Dr. Mia Patel", "Dr. Praveen Bose", "Dr. Donald King"];
+            }
+            addOptionsToChat(doctors);
+        } else {
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'error';
+            errorMsg.textContent = 'Error: No department specified. Please type your selection.';
+            chatMessages.appendChild(errorMsg);
+        }
+    } else if (action === 'request_date' && data && data.available_dates) {
+        // Fallback for backward compatibility
+        addOptionsToChat(data.available_dates);
+    } else if (action === 'request_time' && data && data.available_slots) {
+        // Fallback for backward compatibility
+        addOptionsToChat(data.available_slots);
+    } else if (action === 'show_appointments') {
+        // Also handle show_appointments action for existing appointments
+        addOptionsToChat([
+            { text: "Cancel Appointment", value: "cancel" },
+            { text: "Book New Appointment", value: "book new appointment" }
+        ]);
+    } else if (action === 'conversation_end') {
+        // Disable input when conversation ends
+        userInput.disabled = true;
+        sendButton.disabled = true;
+        
+        // Add a restart button to chat
+        const restartOptions = [{ text: "Start New Conversation", value: "Hello" }];
+        addOptionsToChat(restartOptions);
+        
+        // Add event listener for the restart button
+        const restartButtons = document.querySelectorAll('.chat-option-button');
+        if (restartButtons.length > 0) {
+            const restartButton = restartButtons[restartButtons.length - 1];
+            restartButton.addEventListener('click', () => {
+                userData = { state: null };
+                userInput.disabled = false;
+                sendButton.disabled = false;
             });
-            
-            optionButtons.appendChild(button);
-        });
+        }
     }
 }
 

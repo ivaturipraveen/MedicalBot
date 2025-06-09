@@ -161,24 +161,36 @@ main {
 }
 
 .option-buttons {
-    padding: 12px 28px;
+    padding: 6px 2px;
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
+    gap: 8px;
+    justify-content: flex-start;
+    max-height: 150px;
+    overflow-y: auto;
+    max-width: 70%;
+    margin: 0;
+    margin-left: 20px;
 }
 
 .option-button {
-    background: linear-gradient(90deg, #f0fdfa 0%, #e0e7ff 100%);
+    background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
     border: 1.5px solid #6366f1;
-    color: #3730a3;
+    color: white;
     border-radius: 10px;
-    padding: 12px 20px;
-    font-size: 1rem;
+    padding: 10px 16px;
+    font-size: 0.95rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: 0 1px 4px rgba(99, 102, 241, 0.06);
+    min-width: 80px;
+    max-width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px;
 }
 
 .option-button:hover {
@@ -192,6 +204,118 @@ main {
     background: #38bdf8;
     color: white;
     border-color: #38bdf8;
+    position: relative;
+}
+
+.option-button.selected::after {
+    display: none;
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: button-loading 0.8s linear infinite;
+}
+
+@keyframes button-loading {
+    0% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+.option-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Yes/No buttons specific styling */
+.option-button[data-value="Yes"],
+.option-button[data-value="No"] {
+    min-width: 120px;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.option-button[data-value="Yes"] {
+    background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+    border-color: #fff;
+    color: white;
+}
+
+.option-button[data-value="No"] {
+    background:linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+    border-color: #fff;
+    color: white;
+}
+
+/* Department buttons styling */
+.option-button {
+    color: white;
+    font-weight: 500;
+    
+}
+
+/* Date buttons styling */
+.option-buttons::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.option-buttons::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.option-buttons::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.option-buttons::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Loading indicator */
+.loading {
+    color: #6366f1;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+.error {
+    color: #ef4444;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+/* Start New Conversation button */
+.option-button[data-action="restart"] {
+    background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+    color: white;
+    font-weight: 600;
+    padding: 14px 24px;
+    font-size: 1.1rem;
+    min-width: 220px;
+    margin-top: 10px;
+}
+
+/* Disabled input styling */
+#userInput:disabled,
+#sendButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .chat-input {
@@ -237,6 +361,46 @@ main {
     transform: scale(1.04);
 }
 
+/* Existing appointment buttons styling */
+.option-button[data-action="cancel"] {
+    background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+    border-color: #fff;
+    color: white;
+    min-width: 160px;
+    font-weight: 600;
+}
+
+.option-button[data-action="new"] {
+    background:linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+    border-color: #fff;
+    color: white;
+    min-width: 180px;
+    font-weight: 600;
+}
+
+.option-button[data-action="cancel"]:hover,
+.option-button[data-action="new"]:hover {
+    transform: translateY(-2px) scale(1.04);
+    filter: brightness(1.1);
+}
+
+/* Cancellation confirmation buttons styling */
+.option-button[data-action="yes"] {
+    background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+    border-color: #fff;
+    color: white;
+    min-width: 180px;
+    font-weight: 600;
+}
+
+.option-button[data-action="no"] {
+    background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+    border-color: #fff;
+    color: white;
+    min-width: 180px;
+    font-weight: 600;
+}
+
 @media (max-width: 900px) {
     .container {
         margin: 0;
@@ -255,3 +419,98 @@ main {
         padding: 24px 12px 16px 12px;
     }
 }
+
+@media (max-width: 768px) {
+    .option-buttons {
+        max-width: 90%;
+        margin-left: 20px;
+    }
+    
+    .option-button {
+        min-width: 70px;
+        font-size: 0.9rem;
+    }
+}
+/* In-chat options styling */
+.in-chat-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 15px 42px; /* Aligns with bot messages */
+    max-width: 70%;
+}
+
+.chat-option-button {
+    background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+    border: 1.5px solid #6366f1;
+    color: white;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.06);
+    min-width: 80px;
+    max-width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px;
+}
+
+.chat-option-button:hover {
+    background: #6366f1;
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.chat-option-button.selected {
+    background: #38bdf8;
+    border-color: #38bdf8;
+    position: relative;
+}
+
+.chat-option-button.selected::after {
+    display: none;
+    /* content: "";
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: button-loading 0.8s linear infinite; */
+    
+}
+
+@keyframes button-loading {
+    0% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+.chat-option-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Media query for smaller screens */
+@media (max-width: 768px) {
+    .in-chat-options {
+        max-width: 90%;
+        margin-left: 20px;
+    }
+    
+    .chat-option-button {
+        min-width: 70px;
+        font-size: 0.9rem;
+    }
+} 

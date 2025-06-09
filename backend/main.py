@@ -29,6 +29,9 @@ class UserInput(BaseModel):
     message: str
     user_data: dict = {}
 
+class DepartmentRequest(BaseModel):
+    department: str
+
 class ChatResponse(BaseModel):
     response: str
     action: str = None
@@ -47,6 +50,28 @@ async def call_medical_api(endpoint: str, method: str = "GET", data: dict = None
         
         print(f"Response from {endpoint}: status={response.status_code}")
         return response.status_code, response.json()
+
+@app.post("/doctors")
+async def get_doctors(request: DepartmentRequest):
+    """
+    Get doctors for a specific department
+    """
+    try:
+        status_code, response = await call_medical_api(
+            "/Bland/get-doctors",
+            "POST",
+            {"department": request.department}
+        )
+        
+        if status_code == 200 and "response" in response:
+            doctors = response.get("response")
+            # Convert comma-separated string to array
+            doctors_list = doctors.split(", ")
+            return {"doctors": doctors_list, "department": request.department}
+        else:
+            raise HTTPException(status_code=404, detail="No doctors found for this department")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching doctors: {str(e)}")
 
 @app.post("/chat")
 async def chat(user_input: UserInput):
@@ -141,8 +166,9 @@ async def chat(user_input: UserInput):
                 
                 return ChatResponse(
                     response=f"Welcome back, {first_name}! {appointment_details} Would you like to cancel this appointment or book a new one?",
-                    action="show_appointments",
-                    data={"state": "authenticated", "user_id": user_id, "appointments": appointments, "phone": phone}
+                    action="show_existing_appointment",
+                    data={"state": "authenticated", "user_id": user_id, "appointments": appointments, 
+                          "doctor_name": doctor_name, "department": department, "date": date, "time": time, "phone": phone}
                 )
             else:
                 return ChatResponse(
@@ -281,10 +307,20 @@ async def chat(user_input: UserInput):
         
         # Handle appointment booking
         if "book" in message.lower() or "appointment" in message.lower() or "yes" in message.lower():
+            departments = ["Cardiology", "Neurology", "General Physician"]
             return ChatResponse(
-                response="What department would you like to book an appointment with? We have specialists in Cardiology, Neurology, General Physician.",
-                action="request_department",
-                data={"state": "awaiting_department", "user_id": user_id, "phone": phone}
+                response="What department would you like to book an appointment with?",
+                action="show_options",
+                data={"state": "awaiting_department", "user_id": user_id, "phone": phone, 
+                      "options": departments}
+            )
+        
+        # Handle "No" response to terminate conversation
+        elif "no" in message.lower():
+            return ChatResponse(
+                response="Thank you for using our Medical Appointment Booking System. Have a great day!",
+                action="conversation_end",
+                data={"state": "conversation_ended"}
             )
         
         # Handle appointment checking
@@ -303,8 +339,9 @@ async def chat(user_input: UserInput):
                 
                 return ChatResponse(
                     response=f"You have an appointment with  {doctor_name} from {department} department on {date} at {time}.",
-                    action="show_appointments",
-                    data={"state": "authenticated", "user_id": user_id, "appointments": appointments, "phone": phone}
+                    action="show_existing_appointment",
+                    data={"state": "authenticated", "user_id": user_id, "appointments": appointments, 
+                          "doctor_name": doctor_name, "department": department, "date": date, "time": time, "phone": phone}
                 )
             else:
                 return ChatResponse(
@@ -361,12 +398,19 @@ async def chat(user_input: UserInput):
         
         if status_code == 200 and "response" in response:
             doctors = response.get("response")
+            doctors_list = doctors.split(", ")
+            print(f"Retrieved doctors for {department}: {doctors_list}")
+            
             return ChatResponse(
-                response=f"We have the following doctors in {department}: {doctors}. Which doctor would you like to book an appointment with?",
-                action="request_doctor",
-                data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"), "department": department, "phone": phone}
+                response=f"We have the following doctors in {department}. Which doctor would you like to book an appointment with?",
+                action="show_options",
+                data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"),
+                      "department": department, "phone": phone,
+                      "doctors": doctors_list, 
+                      "options": doctors_list}
             )
         else:
+            print(f"Failed to get doctors for {department}. Status code: {status_code}, Response: {response}")
             return ChatResponse(
                 response="I couldn't find information about that department. Please choose from Cardiology, Neurology, or General Physician.",
                 action="request_department",
@@ -390,25 +434,53 @@ async def chat(user_input: UserInput):
             matched_doctor = response.get("doctor_name")
             
             if available_dates:
-                dates_str = ", ".join(available_dates)
                 return ChatResponse(
-                    response=f" {matched_doctor} is available on the following dates: {dates_str}. Please select a date for your appointment.",
-                    action="request_date",
+                    response=f"{matched_doctor} is available on the following dates. Please select a date for your appointment.",
+                    action="show_options",
                     data={"state": "awaiting_date", "user_id": user_data.get("user_id"), 
                           "doctor_name": matched_doctor, "department": department,
-                          "available_dates": available_dates, "phone": phone}
+                          "available_dates": available_dates, "phone": phone,
+                          "options": available_dates}
                 )
             else:
+                # Try to get the doctors list again to show as options
+                doctors_status, doctors_response = await call_medical_api(
+                    "/Bland/get-doctors",
+                    "POST",
+                    {"department": department}
+                )
+                
+                doctors_list = []
+                if doctors_status == 200 and "response" in doctors_response:
+                    doctors = doctors_response.get("response")
+                    doctors_list = doctors.split(", ")
+                
                 return ChatResponse(
-                    response=f"I'm sorry,  {matched_doctor} doesn't have any available appointments in the next 7 days. Would you like to try another doctor?",
-                    action="request_doctor",
-                    data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"), "department": department, "phone": phone}
+                    response=f"I'm sorry, {matched_doctor} doesn't have any available appointments in the next 7 days. Would you like to try another doctor?",
+                    action="show_options",
+                    data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"), 
+                          "department": department, "phone": phone,
+                          "options": doctors_list}
                 )
         else:
+            # Try to get the doctors list again to show as options
+            doctors_status, doctors_response = await call_medical_api(
+                "/Bland/get-doctors",
+                "POST",
+                {"department": department}
+            )
+            
+            doctors_list = []
+            if doctors_status == 200 and "response" in doctors_response:
+                doctors = doctors_response.get("response")
+                doctors_list = doctors.split(", ")
+            
             return ChatResponse(
                 response="I couldn't find that doctor. Please check the name and try again.",
-                action="request_doctor",
-                data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"), "department": department, "phone": phone}
+                action="show_options",
+                data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"), 
+                      "department": department, "phone": phone,
+                      "options": doctors_list}
             )
     
     elif current_state == "awaiting_date":
@@ -428,29 +500,31 @@ async def chat(user_input: UserInput):
             available_slots = response.get("available_slots")
             
             if available_slots:
-                slots_str = ", ".join(available_slots)
                 return ChatResponse(
-                    response=f" {doctor_name} has the following available time slots on {selected_date}: {slots_str}. Please select a time.",
-                    action="request_time",
+                    response=f"{doctor_name} has the following available time slots on {selected_date}. Please select a time.",
+                    action="show_options",
                     data={"state": "awaiting_time", "user_id": user_data.get("user_id"), 
                           "doctor_name": doctor_name, "department": department,
-                          "selected_date": selected_date, "available_slots": available_slots, "phone": phone}
+                          "selected_date": selected_date, "available_slots": available_slots, "phone": phone,
+                          "options": available_slots}
                 )
             else:
                 return ChatResponse(
-                    response=f"I'm sorry,  {doctor_name} doesn't have any available time slots on {selected_date}. Please select another date.",
-                    action="request_date",
+                    response=f"I'm sorry, {doctor_name} doesn't have any available time slots on {selected_date}. Please select another date.",
+                    action="show_options",
                     data={"state": "awaiting_date", "user_id": user_data.get("user_id"), 
                           "doctor_name": doctor_name, "department": department,
-                          "available_dates": user_data.get("available_dates", []), "phone": phone}
+                          "available_dates": user_data.get("available_dates", []), "phone": phone,
+                          "options": user_data.get("available_dates", [])}
                 )
         else:
             return ChatResponse(
                 response=f"I couldn't retrieve available time slots for that date. Please try a different date.",
-                action="request_date",
+                action="show_options",
                 data={"state": "awaiting_date", "user_id": user_data.get("user_id"), 
                       "doctor_name": doctor_name, "department": department,
-                      "available_dates": user_data.get("available_dates", []), "phone": phone}
+                      "available_dates": user_data.get("available_dates", []), "phone": phone,
+                      "options": user_data.get("available_dates", [])}
             )
     
     elif current_state == "awaiting_time":
@@ -528,6 +602,15 @@ async def chat(user_input: UserInput):
                 data={"state": "authenticated", "user_id": user_data.get("user_id"), "phone": user_data.get("phone", "")}
             )
     
+    # Handle conversation_ended state
+    elif current_state == "conversation_ended":
+        # If user sends another message after conversation ended, restart
+        return ChatResponse(
+            response="Hello! I'm your medical assistant. I'm here to help you with appointments. Could you please share your name?",
+            action="request_name",
+            data={"state": "awaiting_name"}
+        )
+    
     # Default response
     return ChatResponse(
         response="I'm not sure how to help with that. Can you please rephrase or tell me if you'd like to book, check, or cancel an appointment?",
@@ -540,4 +623,4 @@ if __name__ == "__main__":
     import uvicorn
     print("Starting Medical Appointment Booking System...")
     print("API calls to the medical backend will be logged in the terminal.")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)  
