@@ -204,17 +204,6 @@ function handleAction(action, data) {
         // Fallback for backward compatibility
         if (data && data.doctors && Array.isArray(data.doctors)) {
             addOptionsToChat(data.doctors);
-        } else if (data && data.department) {
-            // Get doctors for the department
-            let doctors = [];
-            if (data.department.toLowerCase() === "cardiology") {
-                doctors = ["Dr. Alice Ball", "Dr. Bob Evans", "Dr. Carol Davis", "Dr. David Green", "Dr. Emily Harris"];
-            } else if (data.department.toLowerCase() === "neurology") {
-                doctors = ["Dr. Frank Einstein", "Dr. Grace Johnson", "Dr. Henry King", "Dr. Ramesh King", "Dr. Jack Miller"];
-            } else if (data.department.toLowerCase() === "general physician") {
-                doctors = ["Dr. Nelson Dilipkumar", "Dr. John Dalton", "Dr. Mia Patel", "Dr. Praveen Bose", "Dr. Donald King"];
-            }
-            addOptionsToChat(doctors);
         } else {
             const errorMsg = document.createElement('div');
             errorMsg.className = 'error';
