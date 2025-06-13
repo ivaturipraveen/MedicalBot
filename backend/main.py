@@ -57,21 +57,31 @@ async def get_doctors(request: DepartmentRequest):
     Get doctors for a specific department
     """
     try:
+        department = request.department.strip().capitalize()
+
         status_code, response = await call_medical_api(
             "/Bland/get-doctors",
             "POST",
-            {"department": request.department}
+            {"department": department}
         )
-        
-        if status_code == 200 and "response" in response:
-            doctors = response.get("response")
-            # Convert comma-separated string to array
-            doctors_list = doctors.split(", ")
-            return {"doctors": doctors_list, "department": request.department}
-        else:
-            raise HTTPException(status_code=404, detail="No doctors found for this department")
+
+        print(f"Doctor API response: {response}")
+
+        # 🟢 Use 'doctor_name' as per actual API response
+        doctor_str = response.get("doctor_name", "")
+        doctors_list = [d.strip() for d in doctor_str.split(",") if d.strip()]
+
+        if status_code == 200 and doctors_list:
+            return {"doctors": doctors_list, "department": department}
+
+        raise HTTPException(status_code=404, detail="No doctors found for this department")
+
+    except httpx.HTTPError as http_err:
+        print(f"HTTP error occurred: {http_err}")
+        raise HTTPException(status_code=502, detail=f"Service unavailable: {http_err}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching doctors: {str(e)}")
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/chat")
 async def chat(user_input: UserInput):
@@ -141,8 +151,9 @@ async def chat(user_input: UserInput):
             "POST",
             {"phone": phone, "dob": dob}
         )
+        print(status_code,response)
         
-        if status_code == 200 and response.get("message") == "Patient exists.":
+        if status_code == 200 and response["message"] == "Patient exists.":
             # User exists
             user_id = response.get("patient_id")
             # Extract first name from name if available
@@ -176,7 +187,7 @@ async def chat(user_input: UserInput):
                     action="offer_booking",
                     data={"state": "authenticated", "user_id": user_id, "phone": phone}
                 )
-        elif status_code == 404:
+        elif status_code == 201 and response["message"]=="Patient does not exist.":
             # User doesn't exist, need to collect first name and last name for account creation
             name_parts = name.split(maxsplit=1)
             if len(name_parts) >= 2:
@@ -396,8 +407,8 @@ async def chat(user_input: UserInput):
             {"department": department}
         )
         
-        if status_code == 200 and "response" in response:
-            doctors = response.get("response")
+        if status_code == 200 :
+            doctors = response["doctor_name"]
             doctors_list = doctors.split(", ")
             print(f"Retrieved doctors for {department}: {doctors_list}")
             
@@ -406,7 +417,7 @@ async def chat(user_input: UserInput):
                 action="show_options",
                 data={"state": "awaiting_doctor", "user_id": user_data.get("user_id"),
                       "department": department, "phone": phone,
-                      "doctors": doctors_list, 
+                      "doctors": doctors_list,
                       "options": doctors_list}
             )
         else:
